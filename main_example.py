@@ -6,3 +6,7 @@ for _ in range(1000):
     env.step(env.action_space.sample())
 env.close()
 
+Experience = namedtuple(
+    'Experience',
+    ('state','action','next_state','reward')
+)
