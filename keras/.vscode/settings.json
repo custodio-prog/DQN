@@ -1,0 +1,10 @@
+{
+    "telemetry.enableCrashReporter": false,
+    "telemetry.enableTelemetry": false,
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.pythonPath": "C:\\Users\\custo\\Anaconda3\\python.exe",
+    // "terminal.integrated.shellArgs.windows": ["/K",
+    //     "C:\\Users\\custo\\Anaconda3\\Scripts\\activate.bat C:\\Users\\custo\\Anaconda3"
+    // ]
+}

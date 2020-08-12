@@ -1,0 +1,7 @@
+**/.idea
+**/.vs
+**/.vscode
+*.json
+**/logs
+**/results
+**/examples
