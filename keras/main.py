@@ -63,8 +63,6 @@ OUTP_NAMES = [
     'Training Cycles',
     'Testing Cycles'
 ]
-=======
->>>>>>> parent of ccd0948... Code without controlling pvs f
 
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(
@@ -75,7 +73,6 @@ logging.basicConfig(
 
 # tf.debugging.set_log_device_placement(True) 
 
-<<<<<<< HEAD
 def run_no_control_simulation(dss, cycles, h5file):
     """Run simulation without control
 
@@ -134,8 +131,6 @@ def run_no_control_simulation(dss, cycles, h5file):
     
     return outp 
 
-=======
->>>>>>> parent of ccd0948... Code without controlling pvs f
 def run_online_training(case, dss, h5file,control, cycles):
     """Run online training (test the DQN control)
 
@@ -167,15 +162,12 @@ def run_online_training(case, dss, h5file,control, cycles):
     control.settings.epsilon = 0.1
     episodes_reward_history = []
     episodes_avg_loss_history = []
-<<<<<<< HEAD
     episodes_noviol_history = []
     max_voltages = []
     min_voltages = []
     taps = []
     # min_voltages = h5file.create_dataset('min_voltages', data = [])  
     # max_voltages = h5file.create_dataset('max_voltages', data = [])  
-=======
->>>>>>> parent of ccd0948... Code without controlling pvs f
     # try: # just in case of something triggering an error
     # for c,cycle in enumerate(cycles): #TODO: change this after finding the problem
     for c,cycle in enumerate(cycles):
@@ -188,7 +180,6 @@ def run_online_training(case, dss, h5file,control, cycles):
         for episode in range(dss.npts):
             logging.info (f'Online training, cycle {cycle} ({c+1}/{len(cycles)}) step {episode}')
             avg_loss = None
-<<<<<<< HEAD
 
             if not noviol:
                 state, reward, noviol = dss.dss_feedback(case, True)
@@ -202,14 +193,13 @@ def run_online_training(case, dss, h5file,control, cycles):
 
             episodes_reward_history.append(reward)
             episodes_noviol_history.append(noviol)
-=======
             action = control.act(state)
             next_state, reward, noviol = dss.update_controls(case, 'on', action)
             episodes_reward_history.append(reward)
             next_state = np.reshape(next_state, [1, control.state_size])
             control.memorize(state, action, reward, next_state, noviol)
             state = next_state
->>>>>>> parent of ccd0948... Code without controlling pvs f
+
             
             if episode % control.settings.update_target_network == 0:
                 # update the the target network with new weights
@@ -225,7 +215,6 @@ def run_online_training(case, dss, h5file,control, cycles):
                 reward,
                 avg_loss, 
                 control.settings.epsilon))
-<<<<<<< HEAD
 
         data, cycle_max_voltages, cycle_min_voltages, cycle_tap_position = dss.extractMonitorData()
         h5cycle.create_dataset('VOLTAGES', data = data)  
@@ -251,20 +240,7 @@ def run_online_training(case, dss, h5file,control, cycles):
     outp = dict(zip(OUTP_NAMES[3:], OUTP_VALUES))
     
     return outp 
-=======
-    
-        h5cycle.create_dataset('VOLTAGES', data = dss.extractMonitorData())  
-        # dss.circuit.Monitors.ResetAll() #TODO: check if this is needed when using 'Reset' command! 
-    final_time = time.time()
-    total_time = final_time - init_time
-    logging.info(f'Total time: {total_time} s')
 
->>>>>>> parent of ccd0948... Code without controlling pvs f
-    # except:
-    #     control.model.save_weights(f'{control.settings.outp_folder}/weights_{case}_ON_rec')   
-    #     logging.error('ERROR')
-    
-    return episodes_reward_history, episodes_avg_loss_history
 
 def run_no_control_simulation(dss, h5file, settings, cycles):
     
@@ -320,7 +296,6 @@ def run_offline_training(case, dss, control, cycles):
     Returns: 
         episodes_reward_history (dict): cumulative and averaged rewards  
     """
-<<<<<<< HEAD
     def train_control(state, reward, noviol):
         episode_reward = []
         episode_avg_loss = []
@@ -402,74 +377,6 @@ def run_offline_training(case, dss, control, cycles):
     
     return outp 
 
-    # except:
-    #     control.model.save_weights(f'{control.settings.outp_folder}/weights_{case}_rec')   
-    #     logging.error('ERROR OFFLINE')
-    #     return 
-=======
-    init_time = time.time()
-    episodes_reward_history = {'cumulative': [], 'avg':[]}   
-    episodes_avg_loss_history = []
-    try: # just in case of something triggering an error
-        for c,cycle in enumerate(cycles):
-            logging.info (f'Offline training, cycle {cycle} ({c+1}/{len(cycles)})')
-            dss.set_env(cycle=cycle, mode=0) # 0: snap, 2: time 
-
-            for episode in range(dss.npts):
-                episode_reward = np.zeros(control.settings.max_iterations)
-                episode_avg_loss = []
-                logging.info (f'Offline training, cycle {cycle} ({c+1}/{len(cycles)}) step {episode}')
-                dss.circuit.Solution.Solve()
-                state, _, _ = dss.dss_feedback(case) 
-                state = np.reshape(state, [1, control.state_size])
-                                
-                for attempt in range(control.settings.max_iterations):
-                    action = control.act(state)
-                    next_state, reward, noviol = dss.update_controls(case, 'off', action)
-                    episode_reward[attempt] = reward
-                    next_state = np.reshape(next_state, [1, control.state_size])
-                    control.memorize(state, action, reward, next_state, noviol)
-                    state = next_state
-                    
-                    if noviol:
-                        control.update_target_model()
-                        break
-                    
-                    if attempt % control.settings.update_target_network == 0:
-                        # update the the target network with new weights
-                        control.update_target_model()
-                            
-                    if len(control.memory) > control.settings.batch_size:
-                        avg_loss = control.replay()
-                        episode_avg_loss.append(avg_loss)
-
-                episodes_reward_history['cumulative'].append(np.sum(episode_reward)/np.count_nonzero(episode_reward))
-                episodes_reward_history['avg'].append(np.mean(episode_reward))
-
-                if len(episode_avg_loss) > 0:
-                    l = np.mean(np.array(episode_avg_loss))
-                    episodes_avg_loss_history.append(l)
-                else:
-                    l = None
-
-                logging.info("episode: {}/{}, reward: {}, loss: {}, e: {}"
-                .format(episode, 
-                    dss.npts,
-                    np.sum(episode_reward)/np.count_nonzero(episode_reward),
-                    l, 
-                    control.settings.epsilon))
-        
-        final_time = time.time()
-        total_time = final_time - init_time
-        logging.info(f'Total time: {total_time} s')
-
-    except:
-        control.model.save_weights(f'{control.settings.outp_folder}/weights_{case}_rec')   
-        logging.error('ERROR OFFLINE')
-    
-    return episodes_reward_history, episodes_avg_loss_history
->>>>>>> parent of ccd0948... Code without controlling pvs f
-
 def train_test_cycles(dss, control):
     """Define which cycles are going to be used during off and on training
 
@@ -515,14 +422,6 @@ def save_results(outp, file_path):
 def run(inp):         
     outp = {}
     # outp= SimpleNamespace(**outp)
-=======
-def run(inp):   
-    outp = {
-        'offline': {'ep_rh': [], 'avgl_h': []}, 
-        'online': {'ep_rh': [], 'avgl_h': []}
-    }
-    outp= SimpleNamespace(**outp)
->>>>>>> parent of ccd0948... Code without controlling pvs f
     dss = DSSEngine(inp[0:4])
     control = DQNAgent(inp[4], dss.state_size, dss.action_size)
     training_cycles, testing_cycles = train_test_cycles(dss,control)
@@ -532,7 +431,6 @@ def run(inp):
     logging.info(f'Days used in online training: {num_testing_cycles}')    
   
     for i in range(len(dss.settings.nv)):
-<<<<<<< HEAD
         name = f'{dss.settings.days}_{dss.settings.vs[i]}_nv{dss.settings.nv[i]}_c0{dss.settings.c0[i]}_20200805'
         outp[f'{name}'] = {}
         #HINT *Offline Training 
@@ -541,32 +439,18 @@ def run(inp):
             # results = run_offline_training(i, dss, control, [0])
             control.save(f'{name}_OFF')
             outp[f'{name}'].update(results)
-=======
-        name = f'{dss.settings.days}_{dss.settings.vs[i]}_nv{dss.settings.nv[i]}_c0{dss.settings.c0[i]}_2'
-        # *Offline Training 
-        if control.settings.offline_training:
-            episodes_reward_history, avg_loss_history = run_offline_training(i, dss, control, training_cycles)
-            control.save(f'{name}_OFF', episodes_reward_history, avg_loss_history)
-            outp.offline.ep_rh = episodes_reward_history
-            outp.offline.avgl_h = avg_loss_history
->>>>>>> parent of ccd0948... Code without controlling pvs f
         else:
             control.load(f'{name}_OFF')
         #HINT *Online Training
         if control.settings.online_training:
-<<<<<<< HEAD
             h5file_name = rf"{control.settings.outp_folder}\online_info_{name}_spyder2.h5"
             h5file = h5py.File(h5file_name, "w")
-=======
-            h5file = h5py.File(rf"{control.settings.outp_folder}\online_info_{name}.h5", "w")
->>>>>>> parent of ccd0948... Code without controlling pvs f
             logging.info('Online training')
             episodes_reward_history, avg_loss_history = run_online_training(i, dss, h5file, control, testing_cycles)
             control.save(f'{name}_ON', episodes_reward_history, avg_loss_history)
             kVBases = dss.get_kvbases()
             h5file['violations'] = dss.get_cycle_info(h5file, kVBases)
             h5file.close()
-<<<<<<< HEAD
 
     #HINT *No Control
     if control.settings.no_control:
@@ -604,12 +488,6 @@ def run(inp):
     save_results(outp, f'{control.settings.outp_folder}/outp_{num_training_cycles}OFF_{num_testing_cycles}ON')
     
     return outp 
-=======
-            outp.online.ep_rh = episodes_reward_history
-            outp.online.avgl_h = avg_loss_history
-        
-        return outp
->>>>>>> parent of ccd0948... Code without controlling pvs f
 
 if __name__ == "__main__":
     int_d0 = 1
@@ -618,22 +496,15 @@ if __name__ == "__main__":
     d0 = d0.strftime('%Y-%m-%d')
     d1 = datetime(2018,1,1,0)+timedelta(days=int_d1-1)
     d1 = d1.strftime('%Y-%m-%d')
-<<<<<<< HEAD
     days_used_in_on_off_training = 60 #*defines the length of the dataset
-=======
-    days_used_in_on_off_training = 30 #*defines the length of the dataset
->>>>>>> parent of ccd0948... Code without controlling pvs f
     # Run the simulation
     control_settings = {
         'max_iterations': 100, 
         'learning_rate': 0.001,
         'frequency': 15, #min
         'gamma': 0.99, 
-<<<<<<< HEAD
         'l': 0.1,
         'afun': 'tanh',
-=======
->>>>>>> parent of ccd0948... Code without controlling pvs f
         'memory_capacity': 300,
         'time_step':300, 
         'epsilon': 1, 
@@ -645,7 +516,6 @@ if __name__ == "__main__":
         'without_control': False,
         'plotter': False,
         'ratioTrainTest': 0.7,
-<<<<<<< HEAD
         'update_target_network': 50,
         'batch_size':16,
         'outp_folder' :  r'F:\Users\custo\OneDrive\Msc\BEPE\Deep Reinforcement Learning\DQN\keras\results'
@@ -656,15 +526,6 @@ if __name__ == "__main__":
         'find_critical_loads': False,
         'voltage_scalers': [0.8,1.2],                                              # voltage range used to scale data (input neural network)
         'networkName': 'TAQ-ETR103',                                              
-=======
-        'update_target_network': 15,
-        'batch_size': 48,
-        'outp_folder' :  r'C:\Users\custo\OneDrive\Msc\BEPE\Deep Reinforcement Learning\DQN\keras\results'
-        }
-
-    dss_settings = {
-        'networkName': 'TAQ-ETR103',
->>>>>>> parent of ccd0948... Code without controlling pvs f
         'neutralNum': 4,
         'Sbase': 100e3,
         'ZIP_P':(0.0, 1.0, 0.0),                                                  # Coefficients of the ZIP model - active power
@@ -725,8 +586,6 @@ if __name__ == "__main__":
     logging.info(f'Simulation with {dss_settings["days"]} days')
     dss_settings = SimpleNamespace(**dss_settings)
     control_settings = SimpleNamespace(**control_settings)
-<<<<<<< HEAD
-    inp = ('TAQ-ETR103', 100, 0, dss_settings, control_settings)
     # outp = run(inp)
     
 
@@ -858,45 +717,6 @@ if __name__ == "__main__":
     ax[0].set_ylabel('Reward by Scenario')
     ax[1].set_ylabel('Average Loss')
     ax[1].set_xlabel('Time (days')
-=======
-    inp = ('TAQ-ETR103', 60, 0, dss_settings, control_settings)
-    outp = run(inp)
-
-    #*Plot Results 
-
-    # ep_rh_on = pd.read_pickle(f'{control_settings.outp_folder}/eprh_14_r0_nv100_c01_2_OFF.pkl')
-    # ep_rh_off = pd.read_pickle(f'{control_settings.outp_folder}/eprh_14_r0_nv100_c01_2_OFF.pkl')
-    # avgl_h_on = pd.read_pickle(f'{control_settings.outp_folder}/lossh_14_r0_nv100_c01_2_ON.pkl')
-    # avgl_h_off = pd.read_pickle(f'{control_settings.outp_folder}/lossh_14_r0_nv100_c01_2_OFF.pkl')
-    
-    fig, ax = plt.subplots(1,2, dpi=100, sharey = True, sharex=True)
-
-    # ax[0,1].plot(ep_rh_on, label = 'reward (online)' )
-    ax[0].plot(outp.offline.ep_rh['cumulative'])
-    ax[1].plot(outp.offline.ep_rhavgl_h)
-    ax[0].set_title('Episode/Snapshot Reward (Offline)', fontdict={'fontsize':10})
-    ax[1].set_title('Episode/Snapshot Average Loss (Offline)', fontdict={'fontsize':10})
-    ax[0].set_ylabel('Value')
-    ax[0].set_xlabel('episodes/snapshots')
-    ax[1].set_xlabel('episodes/snapshots')
-   
-    # ax[1,1].plot(avgl_h_on, label = 'average loss (online)' )
-    ax[0].legend(loc="upper right", ncol=2, 
-                   fontsize= 'small', 
-                  fancybox = False,
-                  # markerscale = 35,
-                  frameon = False, 
-                  bbox_to_anchor=(1,1),
-                  borderpad=0.1)
-
-    ax[1].legend(loc="upper right", ncol=2, 
-                   fontsize= 'small', 
-                  fancybox = False,
-                  # markerscale = 35,
-                  frameon = False, 
-                  bbox_to_anchor=(1,1),
-                  borderpad=0.1)
->>>>>>> parent of ccd0948... Code without controlling pvs f
     plt.tight_layout()
     
     plt.show()

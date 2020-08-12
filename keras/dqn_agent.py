@@ -68,13 +68,9 @@ class DQNAgent(object):
         self.index = d.hour+d.minute+d.second
         
         #New
-<<<<<<< HEAD
         # self.loss_function = tf.keras.losses.MeanSquaredError()
         self.loss_function = tf.keras.losses.LogCosh()
         # self.loss_function = tf.keras.losses.Huber()
-=======
-        self.loss_function = tf.keras.losses.Huber()
->>>>>>> parent of ccd0948... Code without controlling pvs f
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=settings.learning_rate)
         self.model = self._build_model()
         self.target_model = self._build_model()
@@ -83,16 +79,11 @@ class DQNAgent(object):
   
     def _build_model(self):
 
-<<<<<<< HEAD
         def keras_opt(): # HINT *KERAS is used here 
-=======
-        def keras_opt(): #!depreciated
->>>>>>> parent of ccd0948... Code without controlling pvs f
             # Neural Net for Deep-Q learning Model
             model = Sequential()
             num_hidden_neurons = round(sqrt(self.state_size*self.action_size))
             logging.info(f'Number of hidden layers is {num_hidden_neurons}')
-<<<<<<< HEAD
             model.add(layers.Dense(10*num_hidden_neurons, 
             input_dim=self.state_size, activation = self.settings.afun, 
             kernel_initializer='glorot_uniform', 
@@ -106,10 +97,6 @@ class DQNAgent(object):
             # model.add(layers.Dense(2*num_hidden_neurons, activation='relu'))
             # model.add(layers.Dense(1*num_hidden_neurons, activation='relu'))
             model.add(layers.Dense(self.action_size, activation='linear'))
-=======
-            model.add(layers.Dense(num_hidden_neurons, input_dim=self.state_size, activation='relu'))
-            model.add(layers.Dense(self.action_size, activation='softmax'))
->>>>>>> parent of ccd0948... Code without controlling pvs f
             model.compile(loss=self.loss_function, optimizer=self.optimizer)
             return model
         
@@ -144,26 +131,16 @@ class DQNAgent(object):
         return np.argmax(act_values[0])  # returns action
 
     def replay(self):
-<<<<<<< HEAD
         def keras_opt(states, actions, rewards, next_states, noviols): #*chosen one
             targets = self.model.predict(states)
             future_rewards = self.target_model.predict(next_states, workers=4, use_multiprocessing=True)
-=======
-        def keras_opt(states, actions, rewards, next_states, noviols): #!depreciated
-            targets = self.model.predict(states, batch_size=32, workers=4, use_multiprocessing=True)
-            future_rewards = self.target_model.predict(next_states, batch_size=32, workers=4, use_multiprocessing=True)
->>>>>>> parent of ccd0948... Code without controlling pvs f
             expected_returns= rewards + self.settings.gamma*np.max(future_rewards, axis=1) 
             actual_values = np.where(noviols, rewards, expected_returns)
 
             for t,a,av in zip(targets,actions,actual_values):
                 t[a] = av
 
-<<<<<<< HEAD
             result = self.model.fit(states, targets, epochs=1, batch_size=self.settings.batch_size, verbose=0)
-=======
-            result = self.model.fit(states, targets, epochs=1, batch_size=32, verbose=2)
->>>>>>> parent of ccd0948... Code without controlling pvs f
             loss = result.history['loss'][0]
 
         def tf_opt(states, actions, rewards, next_states, noviols):

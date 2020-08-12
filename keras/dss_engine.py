@@ -115,13 +115,9 @@ class DSSEngine(object):
         
         else:
             self.critical_loads = pd.read_pickle(rf'{self.settings.outp_folder}/crit_lds_{self.PVPenetration}_pl.pickle')
-<<<<<<< HEAD
             # self.critical_loads = pd.read_pickle(rf'{self.settings.outp_folder}/crit_lds_60_pl.pickle')
         
         logging.info(f'Num critical loads:{len(self.critical_loads)}')
-=======
-
->>>>>>> parent of ccd0948... Code without controlling pvs f
         self.state_size = len(self.critical_loads)
         self.action_size, self.actions = self.action_space()
                         
@@ -171,7 +167,6 @@ class DSSEngine(object):
             the distributed generation.
         
         '''
-<<<<<<< HEAD
         def find_allowed_loads():
             '''Create a list of the allowed loads (loads which the peak demand is within the max and min allowed values)'''
             allowed_loads = []
@@ -182,9 +177,6 @@ class DSSEngine(object):
             
             return allowed_loads
 
-=======
-    
->>>>>>> parent of ccd0948... Code without controlling pvs f
         def voltage_violations():
 
             all_crit_loads = []
@@ -245,16 +237,11 @@ class DSSEngine(object):
             feedback = voltage_violations()
 
             if len(feedback) == 0:
-<<<<<<< HEAD
                 critical_loads += undervoltage_cases[0] #-9
-=======
-                critical_loads += undervoltage_cases
->>>>>>> parent of ccd0948... Code without controlling pvs f
                 break
             else:
                 undervoltage_cases = feedback
         
-<<<<<<< HEAD
         #*Overvoltage
         set_ld_kW(uc_kW, 0.001)
         overvoltage_cases = []
@@ -275,8 +262,6 @@ class DSSEngine(object):
             else:
                 overvoltage_cases.append(feedback)
 
-=======
->>>>>>> parent of ccd0948... Code without controlling pvs f
         if len(critical_loads) == 0:        
             logging.info('No critical loads found')
         else:
@@ -1004,13 +989,8 @@ class DSSEngine(object):
 
         
     
-<<<<<<< HEAD
     def dss_feedback(self, i, train):
-        """Feeback to control's actions in the distribution network
-=======
-    def dss_feedback(self, i):
->>>>>>> parent of ccd0948... Code without controlling pvs f
-
+        """Feeback to control's actions in the distribution network"""
         # overvoltage = np.array([1.05, 1.06, 1.07, 1.08, 1.09, 1.10]) # 1,2,3
         # undervoltage = np.array([0, 0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.93]) 
         # noproblem = 0
@@ -1030,13 +1010,7 @@ class DSSEngine(object):
             elif self.settings.vs[i] == 'r4':
                 return nv*-np.sum(np.abs(np.array(state))) - c0*(np.sum(np.power(np.array(all_volt)-1,2))) #r4
     
-<<<<<<< HEAD
         def check_critical_voltages(): #TODO: use monitors here! Find a way to reduce time!
-=======
-
-        def check_critical_voltages():
-
->>>>>>> parent of ccd0948... Code without controlling pvs f
             state = []
             all_crit_volt = []
 
@@ -1091,17 +1065,8 @@ class DSSEngine(object):
                 reward = calc_reward(i, 1, all_crit_volt)
                 noviol = True
      
-<<<<<<< HEAD
             return scaled_state, reward, noviol #, viol
         
-=======
-        state, all_crit_volt = check_critical_voltages()
-        problems = check_all_voltages()
-
-        if problems:
-            reward = calc_reward(i, 0, all_crit_volt)
-            noviol = False 
->>>>>>> parent of ccd0948... Code without controlling pvs f
         else:
             if problems:
                 reward = 0
@@ -1202,17 +1167,6 @@ class DSSEngine(object):
                         
         return viol
 
-<<<<<<< HEAD
-=======
-    def bin_to_int(self,viol):
-
-        max_exp = len(viol)-1
-        exp = np.geomspace(2**0, 2**max_exp, num=len(viol))
-        state = int(np.sum(exp*viol))
-
-        return state
->>>>>>> parent of ccd0948... Code without controlling pvs f
-
     def putMonitors(self):
         
         iload = self.loads.First
@@ -1234,7 +1188,6 @@ class DSSEngine(object):
     def extractMonitorData(self):
             
         ldData = []
-<<<<<<< HEAD
         tdData = []
         imon= self.circuit.Monitors.First
         while imon > 0:
@@ -1277,31 +1230,3 @@ class DSSEngine(object):
         self.circuit.Monitors.ResetAll() #TODO: check if this is needed when using 'Reset' command! 
 
         return da, cycle_max_voltages, cycle_min_voltages, tdData
-=======
-        
-        ichannel = [1,3,5]
-
-        imon= self.circuit.Monitors.First
-        while imon > 0:
-            nameMonitor = self.circuit.Monitors.Name
-            nameElement = self.circuit.Monitors.Element
-            typeElement =  nameElement.split(".")
-            
-            if typeElement[0] == "load":
-                ph = int(self.circuit.Monitors.NumChannels/4)
-
-                if ph == 4:
-                    ph=3
-                
-                varray = np.zeros((self.circuit.Monitors.SampleCount, 3))
-
-                for i in range(ph):
-
-                    varray[:,i] = self.circuit.Monitors.Channel(ichannel[i])
-
-            ldData.append(varray)
-            
-            imon = self.circuit.Monitors.Next
-        
-        return ldData
->>>>>>> parent of ccd0948... Code without controlling pvs f
