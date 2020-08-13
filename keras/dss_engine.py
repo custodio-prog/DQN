@@ -120,6 +120,7 @@ class DSSEngine(object):
         logging.info(f'Num critical loads:{len(self.critical_loads)}')
         self.state_size = len(self.critical_loads)
         self.action_size, self.actions = self.action_space()
+        self.kVBases = self.get_kvbases()
                         
     def getDblHour(self):
     
@@ -206,66 +207,66 @@ class DSSEngine(object):
                     
             return all_crit_loads
     
-        self.solution.ControlMode = 0 #static
-        dblHourMin, dblHourMax = self.getDblHour()
-        self.solution.dblHour = dblHourMin
-        critical_loads = []
-        # undervoltage_cases = None    
-        #Overvoltage
-        for irrad in self.settings.pvIrradValues:
-            self.setPVIrradValue(irrad)
-            self.solution.SolveSnap()
-            feedback = voltage_violations()
-            if len(feedback) != 0:
-                critical_loads += feedback
-                break
+        # self.solution.ControlMode = 0 #static
+        # dblHourMin, dblHourMax = self.getDblHour()
+        # self.solution.dblHour = dblHourMin
+        # critical_loads = []
+        # # undervoltage_cases = None    
+        # #Overvoltage
+        # for irrad in self.settings.pvIrradValues:
+        #     self.setPVIrradValue(irrad)
+        #     self.solution.SolveSnap()
+        #     feedback = voltage_violations()
+        #     if len(feedback) != 0:
+        #         critical_loads += feedback
+        #         break
         
-        #Undervoltage
-        self.solution.dblHour = dblHourMax
-        self.circuit.RegControls.First
-        self.circuit.ActiveCktElement.Enabled = False
-        self.circuit.Transformers.Name = self.circuit.RegControls.Transformer
-        min_tap_pu = self.circuit.Transformers.MinTap
-        max_tap_pu = self.circuit.Transformers.MaxTap
-        num_taps = self.circuit.Transformers.NumTaps
-        all_taps_pu = np.linspace(min_tap_pu,max_tap_pu,num_taps+1)
-        self.setPVIrradValue(0)
+        # #Undervoltage
+        # self.solution.dblHour = dblHourMax
+        # self.circuit.RegControls.First
+        # self.circuit.ActiveCktElement.Enabled = False
+        # self.circuit.Transformers.Name = self.circuit.RegControls.Transformer
+        # min_tap_pu = self.circuit.Transformers.MinTap
+        # max_tap_pu = self.circuit.Transformers.MaxTap
+        # num_taps = self.circuit.Transformers.NumTaps
+        # all_taps_pu = np.linspace(min_tap_pu,max_tap_pu,num_taps+1)
+        # self.setPVIrradValue(0)
         
-        for tap in all_taps_pu:
-            self.circuit.Transformers.Tap = tap 
-            self.solution.SolveSnap()
-            feedback = voltage_violations()
+        # for tap in all_taps_pu:
+        #     self.circuit.Transformers.Tap = tap 
+        #     self.solution.SolveSnap()
+        #     feedback = voltage_violations()
 
-            if len(feedback) == 0:
-                critical_loads += undervoltage_cases[0] #-9
-                break
-            else:
-                undervoltage_cases = feedback
+        #     if len(feedback) == 0:
+        #         critical_loads += undervoltage_cases[0] #-9
+        #         break
+        #     else:
+        #         undervoltage_cases = feedback
         
-        #*Overvoltage
-        set_ld_kW(uc_kW, 0.001)
-        overvoltage_cases = []
-        self.solution.dblHour = 0#round(dblHourMin, 2)
-        # self.text.Command = "Set mode=snapshot"
-        # self.solution.ControlMode = 0
-        # self.circuit.RegControls.First #! problem here with opendss version
-        self.circuit.RegControls.Name = self.circuit.RegControls.Name
-        self.circuit.ActiveCktElement.Enabled = True
-        for irrad in self.settings.pvIrradValues:
-            # self.setPVIrradValue(irrad)
-            set_pv_kW(uc_kW, irrad) 
-            self.solution.Solve()
-            feedback = voltage_violations()
-            if len(feedback) == 0:
-                critical_loads += overvoltage_cases[0]
-                break
-            else:
-                overvoltage_cases.append(feedback)
+        # #*Overvoltage
+        # # set_ld_kW(uc_kW, 0.001)
+        # overvoltage_cases = []
+        # self.solution.dblHour = 0#round(dblHourMin, 2)
+        # # self.text.Command = "Set mode=snapshot"
+        # # self.solution.ControlMode = 0
+        # # self.circuit.RegControls.First #! problem here with opendss version
+        # self.circuit.RegControls.Name = self.circuit.RegControls.Name
+        # self.circuit.ActiveCktElement.Enabled = True
+        # for irrad in self.settings.pvIrradValues:
+        #     # self.setPVIrradValue(irrad)
+        #     # set_pv_kW(uc_kW, irrad) 
+        #     self.solution.Solve()
+        #     feedback = voltage_violations()
+        #     if len(feedback) == 0:
+        #         critical_loads += overvoltage_cases[0]
+        #         break
+        #     else:
+        #         overvoltage_cases.append(feedback)
 
-        if len(critical_loads) == 0:        
-            logging.info('No critical loads found')
-        else:
-            critical_loads = list(set(critical_loads))
+        # if len(critical_loads) == 0:        
+        #     logging.info('No critical loads found')
+        # else:
+             # critical_loads = list(set(critical_loads))
         
         critical_loads = find_allowed_loads()
         logging.info(f'Num critical loads:{len(critical_loads)}')
@@ -1093,7 +1094,7 @@ class DSSEngine(object):
                         
         return kVBases                
 
-    def get_cycle_info(self, h5file, kVBases):
+    def get_cycle_info(self, h5file):
 
         ''' Used to obtain viol, voltages and control actions during online training'''
       
@@ -1155,9 +1156,9 @@ class DSSEngine(object):
             logging.info(f'Viol in cycle {cycle}')
              
             ild = 0 
-            for kVBase in kVBases:
+            for kVBase in self.kVBases:
                 
-                VmodArray = pd.DataFrame(np.array(h5file[f'{cycle}']['VOLTAGES'][ild])/(1000*kVBase))
+                VmodArray = pd.DataFrame(np.array(h5file[f'{cycle}']['VOLTAGES'][ild]))
                 viol[i][ild][0] = is_nrp_under(VmodArray, kVBase)
                 viol[i][ild][1] = is_nrp_over(VmodArray,  kVBase)
                 viol[i][ild][2] = is_nrc_under(VmodArray, kVBase)

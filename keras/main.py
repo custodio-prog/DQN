@@ -7,7 +7,7 @@ Created on Mon Jan  6 14:27:37 2020
 from types import SimpleNamespace
 import tensorflow as tf
 import logging 
-from settings import Settings
+# from settings import Settings
 from dss_engine import DSSEngine
 from dqn_agent import DQNAgent
 import os 
@@ -22,6 +22,7 @@ import h5py
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
+
 # import plotter
 import dask.delayed as delay
 import dask
@@ -30,7 +31,6 @@ from statistics import mean
 VERYLARGENUMBER = np.inf
 GND = 0 
 NEUTRAL = 4
-<<<<<<< HEAD
 OUTP_NAMES = [
     'Offline Episodes Reward History',
     'Offline Episodes Average Loss History',
@@ -241,49 +241,6 @@ def run_online_training(case, dss, h5file,control, cycles):
     
     return outp 
 
-
-def run_no_control_simulation(dss, h5file, settings, cycles):
-    
-    init_time = time.time()
-    dss.putMonitors()
-
-    for cycle in cycles:
-        
-        logging.info (f'No Control, cycle {cycle}')
-        dss.set_loadshapes(cycle)
-        dss.solution_settings()
-
-        gcycle = h5file.create_group(f"{cycle}")
-        gcycle.create_dataset('CONTROL_ACTIONS', data = np.zeros((dss.npts)))
-
-        for time_step in range(dss.npts):
-            
-            logging.info (f'No Control, cycle {cycle} step {time_step}')
-            dss.circuit.Solution.Solve()
-            # __, __, __, __ = dss.dss_feedback(0, settings.criticalLoads)
-
-            # no_control_info['time_step'].append(time_step)
-            # no_control_info['state'].append(state)
-            # no_control_info['noviol'].append(noviol)
-            
-            dss.circuit.RegControls.First
-            gcycle['CONTROL_ACTIONS'][time_step] = dss.circuit.RegControls.TapNumber
-            
-        ldData = dss.extractMonitorData()
-        gcycle.create_dataset('VOLTAGES', data = ldData)
-        dss.solution_settings()
-        dss.circuit.Monitors.ResetAll()
-    #--------------------------------------------------------------------------------
-
-    final_time = time.time()
-    total_time = final_time - init_time
-    logging.info(f'Solution time:{total_time} seconds')
-    
-    # with open(rf'{settings.outp_folder}/no_control_info_{settings.days}.pickle', 'wb') as handle:
-    #     pickle.dump(no_control_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    return 
-
 def run_offline_training(case, dss, control, cycles):
     """This function executes the offline training
 
@@ -361,6 +318,7 @@ def run_offline_training(case, dss, control, cycles):
                 ep_cum_r,
                 ep_avg_l,
                 control.settings.epsilon))
+            control.tensorboard.update_stats(reward_avg=ep_avg_r, reward_cum=ep_cum_r, epsilon=control.settings.epsilon)
     
     final_time = time.time()
     total_time = final_time - init_time
@@ -406,7 +364,6 @@ def train_test_cycles(dss, control):
 
     return trainingCycles, testingCycles
 
-<<<<<<< HEAD
 def save_results(outp, file_path):
     counter=1
     while True:
@@ -420,8 +377,15 @@ def save_results(outp, file_path):
             break
 
 def run(inp):         
+    """Run OFF,ON, NO CONTROL simulations
+
+    Args:
+        inp (tuple): input -> (Network, PV penetration, scenario, dss_settings, control_settings)
+
+    Returns:
+        dict: summary of results from training
+    """
     outp = {}
-    # outp= SimpleNamespace(**outp)
     dss = DSSEngine(inp[0:4])
     control = DQNAgent(inp[4], dss.state_size, dss.action_size)
     training_cycles, testing_cycles = train_test_cycles(dss,control)
@@ -447,9 +411,9 @@ def run(inp):
             h5file = h5py.File(h5file_name, "w")
             logging.info('Online training')
             episodes_reward_history, avg_loss_history = run_online_training(i, dss, h5file, control, testing_cycles)
-            control.save(f'{name}_ON', episodes_reward_history, avg_loss_history)
+            control.save(f'{name}_ON')
             kVBases = dss.get_kvbases()
-            h5file['violations'] = dss.get_cycle_info(h5file, kVBases)
+            h5file['violations'] = dss.get_cycle_info(h5file)
             h5file.close()
 
     #HINT *No Control
@@ -498,9 +462,9 @@ if __name__ == "__main__":
     d1 = d1.strftime('%Y-%m-%d')
     days_used_in_on_off_training = 60 #*defines the length of the dataset
     # Run the simulation
-    control_settings = {
+    control_settings = { 
         'max_iterations': 100, 
-        'learning_rate': 0.001,
+        'learning_rate': 0.0001,
         'frequency': 15, #min
         'gamma': 0.99, 
         'l': 0.1,
@@ -586,7 +550,8 @@ if __name__ == "__main__":
     logging.info(f'Simulation with {dss_settings["days"]} days')
     dss_settings = SimpleNamespace(**dss_settings)
     control_settings = SimpleNamespace(**control_settings)
-    # outp = run(inp)
+    inp = ('TAQ-ETR103', 60, 0, dss_settings, control_settings)
+    outp = run(inp)
     
 
     # *Plot Results 

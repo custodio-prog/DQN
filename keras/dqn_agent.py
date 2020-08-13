@@ -37,6 +37,7 @@ import tensorflow as tf
 from math import sqrt
 from statistics import mean
 VERYLARGENUMBER = np.inf
+from tensorboard import ModifiedTensorBoard
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -76,10 +77,11 @@ class DQNAgent(object):
         self.target_model = self._build_model()
         self.update_target_model()
         self.memory = deque(maxlen=self.settings.memory_capacity)
-  
-    def _build_model(self):
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.tensorboard = ModifiedTensorBoard('summary', log_dir="{}logs/{}-{}".format(self.settings.outp_folder, current_time, int(time.time())))
 
-        def keras_opt(): # HINT *KERAS is used here 
+    def _build_model(self):
+        def keras_opt(): #*KERAS is used here
             # Neural Net for Deep-Q learning Model
             model = Sequential()
             num_hidden_neurons = round(sqrt(self.state_size*self.action_size))
@@ -87,13 +89,13 @@ class DQNAgent(object):
             model.add(layers.Dense(10*num_hidden_neurons, 
             input_dim=self.state_size, activation = self.settings.afun, 
             kernel_initializer='glorot_uniform', 
-            kernel_regularizer=regularizers.l2(l=self.settings.l)))
+            kernel_regularizer=tf.keras.regularizers.l2(l=self.settings.l)))
             model.add(layers.Dense(5*num_hidden_neurons, 
             activation = self.settings.afun, 
-            kernel_regularizer=regularizers.l2(l=self.settings.l)))
+            kernel_regularizer=tf.keras.regularizers.l2(l=self.settings.l)))
             model.add(layers.Dense(2*num_hidden_neurons, 
             activation = self.settings.afun, 
-            kernel_regularizer=regularizers.l2(l=self.settings.l)))
+            kernel_regularizer=tf.keras.regularizers.l2(l=self.settings.l)))
             # model.add(layers.Dense(2*num_hidden_neurons, activation='relu'))
             # model.add(layers.Dense(1*num_hidden_neurons, activation='relu'))
             model.add(layers.Dense(self.action_size, activation='linear'))
@@ -130,8 +132,11 @@ class DQNAgent(object):
         act_values = self.model.predict(state)
         return np.argmax(act_values[0])  # returns action
 
-    def replay(self):
-        def keras_opt(states, actions, rewards, next_states, noviols): #*chosen one
+    def replay(self, terminal_state):
+        """Train the DQN agent via Prioritezed Experience Replay 
+        """
+
+        def keras_opt(states, actions, rewards, next_states, noviols, terminal_state): #*chosen one
             targets = self.model.predict(states)
             future_rewards = self.target_model.predict(next_states, workers=4, use_multiprocessing=True)
             expected_returns= rewards + self.settings.gamma*np.max(future_rewards, axis=1) 
@@ -140,8 +145,10 @@ class DQNAgent(object):
             for t,a,av in zip(targets,actions,actual_values):
                 t[a] = av
 
-            result = self.model.fit(states, targets, epochs=1, batch_size=self.settings.batch_size, verbose=0)
+            result = self.model.fit(states, targets, epochs=1, batch_size=self.settings.batch_size, 
+            verbose=0, callbacks=[self.tensorboard])
             loss = result.history['loss'][0]
+            return float(loss)
 
         def tf_opt(states, actions, rewards, next_states, noviols):
             # Build the updated Q-values for the sampled future states
@@ -176,7 +183,8 @@ class DQNAgent(object):
         rewards = np.asarray([sample[2] for sample in minibatch])
         next_states = np.asarray([sample[3][0] for sample in minibatch])
         noviols = np.asarray([sample[4] for sample in minibatch])
-        loss = tf_opt(states, actions, rewards, next_states, noviols)
+        # loss = tf_opt(states, actions, rewards, next_states, noviols)
+        loss = keras_opt(states, actions, rewards, next_states, noviols, terminal_state)
         self.settings.epsilon *= self.settings.epsilon_decay
         self.settings.epsilon = max(self.settings.epsilon, self.settings.epsilon_min)
         return loss 
@@ -185,11 +193,5 @@ class DQNAgent(object):
         self.model.load_weights(f'{self.settings.outp_folder}/weights_{name}')
         self.target_model.load_weights(f'{self.settings.outp_folder}/weights_{name}')
 
-    def save(self, name, ep_rh,loss_h):
-        with open(f'{self.settings.outp_folder}/eprh_{name}.pkl', 'wb') as f:
-                pickle.dump(ep_rh, f, pickle.HIGHEST_PROTOCOL)
-
-        with open(f'{self.settings.outp_folder}/lossh_{name}.pkl', 'wb') as f:
-                pickle.dump(loss_h, f, pickle.HIGHEST_PROTOCOL)
-        
+    def save(self, name):
         self.model.save_weights(f'{self.settings.outp_folder}/weights_{name}')   
